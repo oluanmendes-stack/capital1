@@ -312,7 +312,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         const mapped = budgetCategories.map((c: any): BudgetCategory => ({
           id: c.id,
           name: c.name,
-          monthlyLimit: 0, // Budget categories from DB don't have allocated_amount, using 0
+          monthlyLimit: 0,
           description: undefined,
           icon: c.icon || undefined,
           color: c.color || undefined,
@@ -322,26 +322,31 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'LOAD_CATEGORIES', payload: mapped });
         saveCategoriesData(mapped);
       } else if (savedCategories && Array.isArray(savedCategories) && savedCategories.length > 0 && divisionId) {
-        await Promise.all(savedCategories.map(cat => supabaseService.createBudgetCategory({
-          division_id: divisionId!,
-          name: cat.name,
-          allocated_amount: cat.monthlyLimit,
-          icon: cat.icon,
-          color: cat.color
-        } as any)));
-        const after = await supabaseService.getBudgetCategories();
-        const mapped = after.map((c: any): BudgetCategory => ({
-          id: c.id,
-          name: c.name,
-          monthlyLimit: Number(c.allocated_amount) || 0,
-          description: undefined,
-          icon: c.icon || undefined,
-          color: c.color || undefined,
-          createdAt: c.created_at,
-          updatedAt: c.updated_at
-        }));
-        dispatch({ type: 'LOAD_CATEGORIES', payload: mapped });
-        saveCategoriesData(mapped);
+        try {
+          await Promise.all(savedCategories.map(cat => supabaseService.createBudgetCategory({
+            division_id: divisionId!,
+            name: cat.name,
+            allocated_amount: 0,
+            icon: cat.icon,
+            color: cat.color
+          } as any)));
+          const after = await supabaseService.getBudgetCategories();
+          const mapped = after.map((c: any): BudgetCategory => ({
+            id: c.id,
+            name: c.name,
+            monthlyLimit: 0,
+            description: undefined,
+            icon: c.icon || undefined,
+            color: c.color || undefined,
+            createdAt: c.created_at,
+            updatedAt: c.updated_at
+          }));
+          dispatch({ type: 'LOAD_CATEGORIES', payload: mapped });
+          saveCategoriesData(mapped);
+        } catch (e) {
+          console.warn('Erro ao sincronizar categorias com Supabase, usando localStorage:', e);
+          dispatch({ type: 'LOAD_CATEGORIES', payload: savedCategories });
+        }
       } else {
         dispatch({ type: 'LOAD_CATEGORIES', payload: [] });
       }
@@ -392,14 +397,14 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         const createdCat = await supabaseService.createBudgetCategory({
           division_id: divisionId!,
           name: categoryData.name,
-          allocated_amount: categoryData.monthlyLimit,
+          allocated_amount: 0,
           icon: categoryData.icon,
           color: categoryData.color
         } as any);
         const category: BudgetCategory = {
           id: createdCat.id,
           name: createdCat.name,
-          monthlyLimit: Number(createdCat.allocated_amount) || categoryData.monthlyLimit,
+          monthlyLimit: categoryData.monthlyLimit,
           description: categoryData.description,
           icon: createdCat.icon || categoryData.icon,
           color: createdCat.color || categoryData.color,
@@ -425,7 +430,6 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       try {
         await supabaseService.updateBudgetCategory(category.id, {
           name: category.name,
-          allocated_amount: category.monthlyLimit,
           icon: category.icon,
           color: category.color
         } as any);
