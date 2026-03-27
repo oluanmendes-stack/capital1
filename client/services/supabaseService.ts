@@ -1,0 +1,595 @@
+import { createClient } from '@supabase/supabase-js';
+import { 
+  User, 
+  UserCreate, 
+  UserLogin, 
+  DBCategory,
+  DBTransaction,
+  CreateTransactionRequest,
+  UpdateTransactionRequest,
+  CreateBudgetDivisionRequest,
+  UpdateBudgetDivisionRequest,
+  CreateBudgetCategoryRequest,
+  UpdateBudgetCategoryRequest,
+  DBBudgetDivision,
+  DBBudgetCategory,
+  DBBudgetAllocation,
+  TransactionFilters
+} from '@shared/database-types';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+class SupabaseService {
+  private currentUser: User | null = null;
+
+  async register(userData: UserCreate): Promise<{ user: User; token: string }> {
+    try {
+      // Usar autenticação do Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            name: userData.name || ''
+          }
+        }
+      });
+
+      if (error) throw error;
+      if (!data.user) throw new Error('User creation failed');
+
+      const user: User = {
+        id: data.user.id,
+        email: data.user.email || '',
+        name: userData.name,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const token = data.session?.access_token || '';
+      this.currentUser = user;
+
+      return { user, token };
+    } catch (error) {
+      console.error('Erro ao registrar:', error);
+      throw error;
+    }
+  }
+
+  async login(credentials: UserLogin): Promise<{ user: User; token: string }> {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password
+      });
+
+      if (error) throw error;
+      if (!data.user) throw new Error('Login failed');
+
+      const user: User = {
+        id: data.user.id,
+        email: data.user.email || '',
+        name: data.user.user_metadata?.name || null,
+        created_at: data.user.created_at,
+        updated_at: data.user.updated_at
+      };
+
+      const token = data.session?.access_token || '';
+      this.currentUser = user;
+
+      return { user, token };
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
+      throw error;
+    }
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await supabase.auth.signOut();
+      this.currentUser = null;
+    } catch (error) {
+      console.warn('Erro ao fazer logout:', error);
+    }
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        this.currentUser = {
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || null,
+          created_at: user.created_at,
+          updated_at: user.updated_at
+        };
+        return this.currentUser;
+      }
+      return null;
+    } catch (error) {
+      console.warn('Erro ao obter usuário atual:', error);
+      return null;
+    }
+  }
+
+  // ========== CATEGORIAS ==========
+  async getCategories(): Promise<DBCategory[]> {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('type, name');
+
+      if (error) throw error;
+
+      let categories = (data as DBCategory[]) || [];
+
+      // Auto-seed default categories if empty
+      if (categories.length === 0) {
+        await this.createDefaultCategories();
+        return this.getCategories();
+      }
+
+      return categories;
+    } catch (error) {
+      console.warn('Erro ao buscar categorias do Supabase:', error);
+      return [];
+    }
+  }
+
+  private async createDefaultCategories(): Promise<void> {
+    const defaultCategories = [
+      // Receitas
+      { name: 'Salário', type: 'receita', icon: '💰', color: '#10B981', is_default: true },
+      { name: 'Freelance', type: 'receita', icon: '💻', color: '#3B82F6', is_default: true },
+      { name: 'Investimentos', type: 'receita', icon: '📈', color: '#8B5CF6', is_default: true },
+      { name: 'Outros', type: 'receita', icon: '💵', color: '#F59E0B', is_default: true },
+      // Despesas
+      { name: 'Alimentação', type: 'despesa', icon: '🍔', color: '#EF4444', is_default: true },
+      { name: 'Transporte', type: 'despesa', icon: '🚗', color: '#EC4899', is_default: true },
+      { name: 'Moradia', type: 'despesa', icon: '🏠', color: '#F97316', is_default: true },
+      { name: 'Saúde', type: 'despesa', icon: '🏥', color: '#06B6D4', is_default: true },
+      { name: 'Educação', type: 'despesa', icon: '📚', color: '#0EA5E9', is_default: true },
+      { name: 'Entretenimento', type: 'despesa', icon: '🎬', color: '#D946EF', is_default: true },
+      { name: 'Compras', type: 'despesa', icon: '🛍️', color: '#A855F7', is_default: true },
+      { name: 'Serviços', type: 'despesa', icon: '🔧', color: '#64748B', is_default: true },
+      { name: 'Outros', type: 'despesa', icon: '❌', color: '#64748B', is_default: true }
+    ];
+
+    try {
+      for (const category of defaultCategories) {
+        try {
+          const { error } = await supabase.from('categories').insert([category]);
+          if (error) {
+            console.warn('Error creating default category:', category.name, error);
+          }
+        } catch (e) {
+          console.warn('Error creating category:', category.name, e);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating default categories:', error);
+    }
+  }
+
+  async createCategory(category: Omit<DBCategory, 'id' | 'user_id' | 'created_at'>): Promise<DBCategory> {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert([category])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as DBCategory;
+    } catch (error) {
+      console.warn('Erro ao criar categoria:', error);
+      throw error;
+    }
+  }
+
+  async deleteCategory(categoryId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', categoryId)
+        .eq('is_default', false);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn('Erro ao deletar categoria:', error);
+      throw error;
+    }
+  }
+
+  // ========== TRANSAÇÕES ==========
+  async getTransactions(filters?: TransactionFilters): Promise<DBTransaction[]> {
+    try {
+      let query = supabase.from('transactions').select('*');
+
+      if (filters?.category_id) {
+        query = query.eq('category_id', filters.category_id);
+      }
+      if (filters?.type) {
+        query = query.eq('type', filters.type);
+      }
+      if (filters?.start_date) {
+        query = query.gte('date', filters.start_date);
+      }
+      if (filters?.end_date) {
+        query = query.lte('date', filters.end_date);
+      }
+
+      const { data, error } = await query.order('date', { ascending: false });
+
+      if (error) throw error;
+      return (data as DBTransaction[]) || [];
+    } catch (error) {
+      console.warn('Erro ao buscar transações:', error);
+      return [];
+    }
+  }
+
+  async createTransaction(transaction: CreateTransactionRequest): Promise<DBTransaction> {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([transaction])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as DBTransaction;
+    } catch (error) {
+      console.warn('Erro ao criar transação:', error);
+      throw error;
+    }
+  }
+
+  async updateTransaction(id: string, updates: UpdateTransactionRequest): Promise<DBTransaction> {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as DBTransaction;
+    } catch (error) {
+      console.warn('Erro ao atualizar transação:', error);
+      throw error;
+    }
+  }
+
+  async deleteTransaction(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn('Erro ao deletar transação:', error);
+      throw error;
+    }
+  }
+
+  // ========== DIVISÕES ORÇAMENTÁRIAS ==========
+  async getBudgetDivisions(): Promise<DBBudgetDivision[]> {
+    try {
+      const { data, error } = await supabase
+        .from('budget_divisions')
+        .select('*')
+        .order('sort_order');
+
+      if (error) throw error;
+      return (data as DBBudgetDivision[]) || [];
+    } catch (error) {
+      console.warn('Erro ao buscar divisões orçamentárias:', error);
+      return [];
+    }
+  }
+
+  async createBudgetDivision(division: CreateBudgetDivisionRequest): Promise<DBBudgetDivision> {
+    try {
+      const { data, error } = await supabase
+        .from('budget_divisions')
+        .insert([division])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as DBBudgetDivision;
+    } catch (error) {
+      console.warn('Erro ao criar divisão orçamentária:', error);
+      throw error;
+    }
+  }
+
+  async updateBudgetDivision(id: string, updates: UpdateBudgetDivisionRequest): Promise<DBBudgetDivision> {
+    try {
+      const { data, error } = await supabase
+        .from('budget_divisions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as DBBudgetDivision;
+    } catch (error) {
+      console.warn('Erro ao atualizar divisão orçamentária:', error);
+      throw error;
+    }
+  }
+
+  async deleteBudgetDivision(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('budget_divisions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn('Erro ao deletar divisão orçamentária:', error);
+      throw error;
+    }
+  }
+
+  // ========== CATEGORIAS DE ORÇAMENTO ==========
+  async getBudgetCategories(): Promise<DBBudgetCategory[]> {
+    try {
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .select('*')
+        .order('created_at');
+
+      if (error) throw error;
+      return (data as DBBudgetCategory[]) || [];
+    } catch (error) {
+      console.warn('Erro ao buscar categorias orçamentárias:', error);
+      return [];
+    }
+  }
+
+  async createBudgetCategory(category: CreateBudgetCategoryRequest): Promise<DBBudgetCategory> {
+    try {
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .insert([category])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as DBBudgetCategory;
+    } catch (error) {
+      console.warn('Erro ao criar categoria orçamentária:', error);
+      throw error;
+    }
+  }
+
+  async updateBudgetCategory(id: string, updates: UpdateBudgetCategoryRequest): Promise<DBBudgetCategory> {
+    try {
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as DBBudgetCategory;
+    } catch (error) {
+      console.warn('Erro ao atualizar categoria orçamentária:', error);
+      throw error;
+    }
+  }
+
+  async deleteBudgetCategory(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('budget_categories')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn('Erro ao deletar categoria orçamentária:', error);
+      throw error;
+    }
+  }
+
+  // ========== ALOCAÇÕES DE ORÇAMENTO ==========
+  async getBudgetAllocations(): Promise<DBBudgetAllocation[]> {
+    try {
+      const { data, error } = await supabase
+        .from('budget_allocations')
+        .select('*');
+
+      if (error) throw error;
+      return (data as DBBudgetAllocation[]) || [];
+    } catch (error) {
+      console.warn('Erro ao buscar alocações orçamentárias:', error);
+      return [];
+    }
+  }
+
+  async createBudgetAllocation(allocation: any): Promise<DBBudgetAllocation> {
+    try {
+      const { data, error } = await supabase
+        .from('budget_allocations')
+        .insert([allocation])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as DBBudgetAllocation;
+    } catch (error) {
+      console.warn('Erro ao criar alocação orçamentária:', error);
+      throw error;
+    }
+  }
+
+  async deleteBudgetAllocation(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('budget_allocations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn('Erro ao deletar alocação orçamentária:', error);
+      throw error;
+    }
+  }
+
+  // ========== OBJETIVOS (GOALS) ==========
+  async getGoals(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('goals')
+        .select('*')
+        .order('deadline');
+
+      if (error) throw error;
+      return (data as any[]) || [];
+    } catch (error) {
+      console.warn('Erro ao buscar objetivos do Supabase:', error);
+      return [];
+    }
+  }
+
+  async createGoal(goal: any): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('goals')
+        .insert([goal])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.warn('Erro ao criar objetivo:', error);
+      throw error;
+    }
+  }
+
+  async updateGoal(id: string, updates: any): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('goals')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.warn('Erro ao atualizar objetivo:', error);
+      throw error;
+    }
+  }
+
+  async deleteGoal(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('goals')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn('Erro ao deletar objetivo:', error);
+      throw error;
+    }
+  }
+
+  // ========== INVESTIMENTOS ==========
+  async getInvestments(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('investments')
+        .select('*')
+        .order('created_at');
+
+      if (error) throw error;
+      return (data as any[]) || [];
+    } catch (error) {
+      console.warn('Erro ao buscar investimentos do Supabase:', error);
+      return [];
+    }
+  }
+
+  async createInvestment(investment: any): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('investments')
+        .insert([investment])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.warn('Erro ao criar investimento:', error);
+      throw error;
+    }
+  }
+
+  async updateInvestment(id: string, updates: any): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('investments')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.warn('Erro ao atualizar investimento:', error);
+      throw error;
+    }
+  }
+
+  async deleteInvestment(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('investments')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn('Erro ao deletar investimento:', error);
+      throw error;
+    }
+  }
+}
+
+export const supabaseService = new SupabaseService();
+export default supabaseService;
