@@ -350,7 +350,7 @@ export async function handleAPI(request: Request, env: CloudflareEnv): Promise<R
 
       if (method === 'POST') {
         const body = await request.json();
-        
+
         if (!body.division_id || !body.name || !body.allocated_amount) {
           return validationErrorResponse('Campos obrigatórios: division_id, name, allocated_amount');
         }
@@ -359,6 +359,7 @@ export async function handleAPI(request: Request, env: CloudflareEnv): Promise<R
           division_id: body.division_id,
           name: body.name,
           allocated_amount: parseFloat(body.allocated_amount),
+          percentage: body.percentage ? parseFloat(body.percentage) : 0,
           icon: body.icon || undefined,
           color: body.color || undefined
         };

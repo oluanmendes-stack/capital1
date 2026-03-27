@@ -327,6 +327,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
             division_id: divisionId!,
             name: cat.name,
             allocated_amount: 0,
+            percentage: 0,
             icon: cat.icon,
             color: cat.color
           } as any)));
@@ -398,6 +399,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
           division_id: divisionId!,
           name: categoryData.name,
           allocated_amount: 0,
+          percentage: 0,
           icon: categoryData.icon,
           color: categoryData.color
         } as any);
@@ -428,10 +430,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const updateCategory = useCallback((category: BudgetCategory) => {
     (async () => {
       try {
+        // Only update fields that exist in the budget_categories table
         await supabaseService.updateBudgetCategory(category.id, {
-          name: category.name,
-          icon: category.icon,
-          color: category.color
+          name: category.name
         } as any);
       } catch (e) {
         console.warn('Falha ao atualizar categoria na Supabase, atualizando localmente:', e);

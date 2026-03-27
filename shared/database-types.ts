@@ -184,6 +184,7 @@ export interface CreateBudgetCategoryRequest {
   division_id: string;
   name: string;
   allocated_amount: number;
+  percentage: number;
   icon?: string;
   color?: string;
 }
