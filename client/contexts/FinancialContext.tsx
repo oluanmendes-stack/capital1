@@ -557,8 +557,8 @@ export function FinancialProvider({ children }: FinancialProviderProps) {
         amount: dbTx.amount,
         date: dbTx.date,
         source: dbTx.source,
-        sourceDetails: dbTx.source_details ? JSON.parse(dbTx.source_details) : undefined,
-        tags: dbTx.tags ? JSON.parse(dbTx.tags) : undefined,
+        sourceDetails: dbTx.source_details && typeof dbTx.source_details === 'string' && dbTx.source_details.trim() ? JSON.parse(dbTx.source_details) : undefined,
+        tags: dbTx.tags && typeof dbTx.tags === 'string' && dbTx.tags.trim() ? JSON.parse(dbTx.tags) : undefined,
         createdAt: dbTx.created_at,
         updatedAt: dbTx.updated_at
       }));
@@ -590,25 +590,41 @@ export function FinancialProvider({ children }: FinancialProviderProps) {
       const savedFGTS = localStorage.getItem(DEMO_FGTS_KEY);
       const savedFGTSAllocations = localStorage.getItem(DEMO_FGTS_ALLOCATIONS_KEY);
 
-      if (savedTransactions) {
-        dispatch({ type: 'SET_TRANSACTIONS', payload: JSON.parse(savedTransactions) });
+      if (savedTransactions && savedTransactions.trim()) {
+        try {
+          dispatch({ type: 'SET_TRANSACTIONS', payload: JSON.parse(savedTransactions) });
+        } catch {
+          dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
+        }
       } else {
         dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
       }
 
-      if (savedCategories) {
-        const parsed = JSON.parse(savedCategories);
-        dispatch({ type: 'SET_CATEGORIES', payload: parsed });
+      if (savedCategories && savedCategories.trim()) {
+        try {
+          const parsed = JSON.parse(savedCategories);
+          dispatch({ type: 'SET_CATEGORIES', payload: parsed });
+        } catch {
+          dispatch({ type: 'SET_CATEGORIES', payload: DEFAULT_CATEGORIES });
+        }
       } else {
         dispatch({ type: 'SET_CATEGORIES', payload: DEFAULT_CATEGORIES });
       }
 
-      if (savedFGTS) {
-        dispatch({ type: 'SET_FGTS_BALANCE', payload: parseFloat(savedFGTS) });
+      if (savedFGTS && savedFGTS.trim()) {
+        try {
+          dispatch({ type: 'SET_FGTS_BALANCE', payload: parseFloat(savedFGTS) });
+        } catch {
+          // Keep default value
+        }
       }
 
-      if (savedFGTSAllocations) {
-        dispatch({ type: 'SET_FGTS_ALLOCATIONS', payload: JSON.parse(savedFGTSAllocations) });
+      if (savedFGTSAllocations && savedFGTSAllocations.trim()) {
+        try {
+          dispatch({ type: 'SET_FGTS_ALLOCATIONS', payload: JSON.parse(savedFGTSAllocations) });
+        } catch {
+          // Keep empty allocations
+        }
       }
 
       dispatch({ type: 'SET_ERROR', payload: null });
