@@ -313,13 +313,9 @@ class SupabaseService {
   // ========== DIVISÕES ORÇAMENTÁRIAS ==========
   async getBudgetDivisions(): Promise<DBBudgetDivision[]> {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) return [];
-
       const { data, error } = await supabase
         .from('budget_divisions')
         .select('*')
-        .eq('user_id', user.id)
         .order('sort_order');
 
       if (error) throw error;
@@ -332,15 +328,9 @@ class SupabaseService {
 
   async createBudgetDivision(division: CreateBudgetDivisionRequest): Promise<DBBudgetDivision> {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error('User not authenticated');
-
       const { data, error } = await supabase
         .from('budget_divisions')
-        .insert([{
-          ...division,
-          user_id: user.id
-        }])
+        .insert([division])
         .select()
         .single();
 
@@ -387,13 +377,9 @@ class SupabaseService {
   // ========== CATEGORIAS DE ORÇAMENTO ==========
   async getBudgetCategories(): Promise<DBBudgetCategory[]> {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) return [];
-
       const { data, error } = await supabase
         .from('budget_categories')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at');
 
       if (error) throw error;
@@ -406,15 +392,9 @@ class SupabaseService {
 
   async createBudgetCategory(category: CreateBudgetCategoryRequest): Promise<DBBudgetCategory> {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error('User not authenticated');
-
       const { data, error } = await supabase
         .from('budget_categories')
-        .insert([{
-          ...category,
-          user_id: user.id
-        }])
+        .insert([category])
         .select()
         .single();
 
@@ -461,13 +441,9 @@ class SupabaseService {
   // ========== ALOCAÇÕES DE ORÇAMENTO ==========
   async getBudgetAllocations(): Promise<DBBudgetAllocation[]> {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) return [];
-
       const { data, error } = await supabase
         .from('budget_allocations')
-        .select('*')
-        .eq('user_id', user.id);
+        .select('*');
 
       if (error) throw error;
       return (data as DBBudgetAllocation[]) || [];
@@ -479,15 +455,9 @@ class SupabaseService {
 
   async createBudgetAllocation(allocation: any): Promise<DBBudgetAllocation> {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error('User not authenticated');
-
       const { data, error } = await supabase
         .from('budget_allocations')
-        .insert([{
-          ...allocation,
-          user_id: user.id
-        }])
+        .insert([allocation])
         .select()
         .single();
 
