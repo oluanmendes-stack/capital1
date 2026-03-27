@@ -509,6 +509,10 @@ class SupabaseService {
 
   // ========== OBJETIVOS (GOALS) ==========
   async getGoals(): Promise<any[]> {
+    if (!supabase) {
+      console.warn('Supabase not available, returning empty goals');
+      return [];
+    }
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) return [];
@@ -528,6 +532,9 @@ class SupabaseService {
   }
 
   async createGoal(goal: any): Promise<any> {
+    if (!supabase) {
+      throw new Error('Supabase not available');
+    }
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error('User not authenticated');
@@ -550,6 +557,9 @@ class SupabaseService {
   }
 
   async updateGoal(id: string, updates: any): Promise<any> {
+    if (!supabase) {
+      throw new Error('Supabase not available');
+    }
     try {
       const { data, error } = await supabase
         .from('goals')
@@ -567,6 +577,9 @@ class SupabaseService {
   }
 
   async deleteGoal(id: string): Promise<boolean> {
+    if (!supabase) {
+      throw new Error('Supabase not available');
+    }
     try {
       const { error } = await supabase
         .from('goals')
