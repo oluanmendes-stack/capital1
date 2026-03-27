@@ -123,9 +123,13 @@ class SupabaseService {
   // ========== CATEGORIAS ==========
   async getCategories(): Promise<DBCategory[]> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return [];
+
       const { data, error } = await supabase
         .from('categories')
         .select('*')
+        .eq('user_id', user.id)
         .order('type, name');
 
       if (error) throw error;
@@ -146,25 +150,28 @@ class SupabaseService {
   }
 
   private async createDefaultCategories(): Promise<void> {
-    const defaultCategories = [
-      // Receitas
-      { name: 'Salário', type: 'receita', icon: '💰', color: '#10B981', is_default: true },
-      { name: 'Freelance', type: 'receita', icon: '💻', color: '#3B82F6', is_default: true },
-      { name: 'Investimentos', type: 'receita', icon: '📈', color: '#8B5CF6', is_default: true },
-      { name: 'Outros', type: 'receita', icon: '💵', color: '#F59E0B', is_default: true },
-      // Despesas
-      { name: 'Alimentação', type: 'despesa', icon: '🍔', color: '#EF4444', is_default: true },
-      { name: 'Transporte', type: 'despesa', icon: '🚗', color: '#EC4899', is_default: true },
-      { name: 'Moradia', type: 'despesa', icon: '🏠', color: '#F97316', is_default: true },
-      { name: 'Saúde', type: 'despesa', icon: '🏥', color: '#06B6D4', is_default: true },
-      { name: 'Educação', type: 'despesa', icon: '📚', color: '#0EA5E9', is_default: true },
-      { name: 'Entretenimento', type: 'despesa', icon: '🎬', color: '#D946EF', is_default: true },
-      { name: 'Compras', type: 'despesa', icon: '🛍️', color: '#A855F7', is_default: true },
-      { name: 'Serviços', type: 'despesa', icon: '🔧', color: '#64748B', is_default: true },
-      { name: 'Outros', type: 'despesa', icon: '❌', color: '#64748B', is_default: true }
-    ];
-
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return;
+
+      const defaultCategories = [
+        // Receitas
+        { name: 'Salário', type: 'receita', icon: '💰', color: '#10B981', is_default: true, user_id: user.id },
+        { name: 'Freelance', type: 'receita', icon: '💻', color: '#3B82F6', is_default: true, user_id: user.id },
+        { name: 'Investimentos', type: 'receita', icon: '📈', color: '#8B5CF6', is_default: true, user_id: user.id },
+        { name: 'Outros', type: 'receita', icon: '💵', color: '#F59E0B', is_default: true, user_id: user.id },
+        // Despesas
+        { name: 'Alimentação', type: 'despesa', icon: '🍔', color: '#EF4444', is_default: true, user_id: user.id },
+        { name: 'Transporte', type: 'despesa', icon: '🚗', color: '#EC4899', is_default: true, user_id: user.id },
+        { name: 'Moradia', type: 'despesa', icon: '🏠', color: '#F97316', is_default: true, user_id: user.id },
+        { name: 'Saúde', type: 'despesa', icon: '🏥', color: '#06B6D4', is_default: true, user_id: user.id },
+        { name: 'Educação', type: 'despesa', icon: '📚', color: '#0EA5E9', is_default: true, user_id: user.id },
+        { name: 'Entretenimento', type: 'despesa', icon: '🎬', color: '#D946EF', is_default: true, user_id: user.id },
+        { name: 'Compras', type: 'despesa', icon: '🛍️', color: '#A855F7', is_default: true, user_id: user.id },
+        { name: 'Serviços', type: 'despesa', icon: '🔧', color: '#64748B', is_default: true, user_id: user.id },
+        { name: 'Outros', type: 'despesa', icon: '❌', color: '#64748B', is_default: true, user_id: user.id }
+      ];
+
       for (const category of defaultCategories) {
         try {
           const { error } = await supabase.from('categories').insert([category]);
@@ -182,9 +189,15 @@ class SupabaseService {
 
   async createCategory(category: Omit<DBCategory, 'id' | 'user_id' | 'created_at'>): Promise<DBCategory> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('categories')
-        .insert([category])
+        .insert([{
+          ...category,
+          user_id: user.id
+        }])
         .select()
         .single();
 
@@ -215,7 +228,10 @@ class SupabaseService {
   // ========== TRANSAÇÕES ==========
   async getTransactions(filters?: TransactionFilters): Promise<DBTransaction[]> {
     try {
-      let query = supabase.from('transactions').select('*');
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return [];
+
+      let query = supabase.from('transactions').select('*').eq('user_id', user.id);
 
       if (filters?.category_id) {
         query = query.eq('category_id', filters.category_id);
@@ -242,9 +258,15 @@ class SupabaseService {
 
   async createTransaction(transaction: CreateTransactionRequest): Promise<DBTransaction> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('transactions')
-        .insert([transaction])
+        .insert([{
+          ...transaction,
+          user_id: user.id
+        }])
         .select()
         .single();
 
@@ -291,9 +313,13 @@ class SupabaseService {
   // ========== DIVISÕES ORÇAMENTÁRIAS ==========
   async getBudgetDivisions(): Promise<DBBudgetDivision[]> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return [];
+
       const { data, error } = await supabase
         .from('budget_divisions')
         .select('*')
+        .eq('user_id', user.id)
         .order('sort_order');
 
       if (error) throw error;
@@ -306,9 +332,15 @@ class SupabaseService {
 
   async createBudgetDivision(division: CreateBudgetDivisionRequest): Promise<DBBudgetDivision> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('budget_divisions')
-        .insert([division])
+        .insert([{
+          ...division,
+          user_id: user.id
+        }])
         .select()
         .single();
 
@@ -355,9 +387,13 @@ class SupabaseService {
   // ========== CATEGORIAS DE ORÇAMENTO ==========
   async getBudgetCategories(): Promise<DBBudgetCategory[]> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return [];
+
       const { data, error } = await supabase
         .from('budget_categories')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at');
 
       if (error) throw error;
@@ -370,9 +406,15 @@ class SupabaseService {
 
   async createBudgetCategory(category: CreateBudgetCategoryRequest): Promise<DBBudgetCategory> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('budget_categories')
-        .insert([category])
+        .insert([{
+          ...category,
+          user_id: user.id
+        }])
         .select()
         .single();
 
@@ -419,9 +461,13 @@ class SupabaseService {
   // ========== ALOCAÇÕES DE ORÇAMENTO ==========
   async getBudgetAllocations(): Promise<DBBudgetAllocation[]> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return [];
+
       const { data, error } = await supabase
         .from('budget_allocations')
-        .select('*');
+        .select('*')
+        .eq('user_id', user.id);
 
       if (error) throw error;
       return (data as DBBudgetAllocation[]) || [];
@@ -433,9 +479,15 @@ class SupabaseService {
 
   async createBudgetAllocation(allocation: any): Promise<DBBudgetAllocation> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('budget_allocations')
-        .insert([allocation])
+        .insert([{
+          ...allocation,
+          user_id: user.id
+        }])
         .select()
         .single();
 
@@ -465,9 +517,13 @@ class SupabaseService {
   // ========== OBJETIVOS (GOALS) ==========
   async getGoals(): Promise<any[]> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return [];
+
       const { data, error } = await supabase
         .from('goals')
         .select('*')
+        .eq('user_id', user.id)
         .order('deadline');
 
       if (error) throw error;
@@ -480,9 +536,15 @@ class SupabaseService {
 
   async createGoal(goal: any): Promise<any> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('goals')
-        .insert([goal])
+        .insert([{
+          ...goal,
+          user_id: user.id
+        }])
         .select()
         .single();
 
@@ -529,9 +591,13 @@ class SupabaseService {
   // ========== INVESTIMENTOS ==========
   async getInvestments(): Promise<any[]> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return [];
+
       const { data, error } = await supabase
         .from('investments')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at');
 
       if (error) throw error;
@@ -544,9 +610,15 @@ class SupabaseService {
 
   async createInvestment(investment: any): Promise<any> {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('investments')
-        .insert([investment])
+        .insert([{
+          ...investment,
+          user_id: user.id
+        }])
         .select()
         .single();
 
