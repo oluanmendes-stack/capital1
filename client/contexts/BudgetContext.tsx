@@ -430,10 +430,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const updateCategory = useCallback((category: BudgetCategory) => {
     (async () => {
       try {
+        // Only update fields that exist in the budget_categories table
         await supabaseService.updateBudgetCategory(category.id, {
-          name: category.name,
-          icon: category.icon,
-          color: category.color
+          name: category.name
         } as any);
       } catch (e) {
         console.warn('Falha ao atualizar categoria na Supabase, atualizando localmente:', e);

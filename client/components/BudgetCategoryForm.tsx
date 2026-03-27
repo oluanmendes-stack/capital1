@@ -19,34 +19,20 @@ interface BudgetCategoryFormProps {
 export default function BudgetCategoryForm({ children, open, onOpenChange, editCategory }: BudgetCategoryFormProps) {
   const { addCategory, updateCategory } = useBudget();
   const { toast } = useToast();
-  
-  const [formData, setFormData] = useState({
-    name: editCategory?.name || '',
-    monthlyLimit: editCategory?.monthlyLimit?.toString() || '',
-    description: editCategory?.description || '',
-    icon: editCategory?.icon || '💰',
-    color: editCategory?.color || '#3b82f6'
+
+  const getInitialFormData = () => ({
+    name: editCategory?.name ?? '',
+    monthlyLimit: editCategory?.monthlyLimit?.toString() ?? '',
+    description: editCategory?.description ?? '',
+    icon: editCategory?.icon ?? '💰',
+    color: editCategory?.color ?? '#3b82f6'
   });
+
+  const [formData, setFormData] = useState(getInitialFormData());
 
   // Atualizar o form quando editCategory mudar
   useEffect(() => {
-    if (editCategory) {
-      setFormData({
-        name: editCategory.name,
-        monthlyLimit: editCategory.monthlyLimit.toString(),
-        description: editCategory.description || '',
-        icon: editCategory.icon,
-        color: editCategory.color
-      });
-    } else {
-      setFormData({
-        name: '',
-        monthlyLimit: '',
-        description: '',
-        icon: '💰',
-        color: '#3b82f6'
-      });
-    }
+    setFormData(getInitialFormData());
   }, [editCategory]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -166,7 +152,7 @@ export default function BudgetCategoryForm({ children, open, onOpenChange, editC
             <Label htmlFor="name">Nome da Categoria *</Label>
             <Input
               id="name"
-              value={formData.name}
+              value={formData.name ?? ''}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Ex: Alimentação, Transporte..."
             />
@@ -178,7 +164,7 @@ export default function BudgetCategoryForm({ children, open, onOpenChange, editC
               <Label htmlFor="icon">Ícone</Label>
               <Input
                 id="icon"
-                value={formData.icon}
+                value={formData.icon ?? '💰'}
                 onChange={(e) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
                 placeholder="🍽️"
                 className="text-center text-xl"
@@ -190,7 +176,7 @@ export default function BudgetCategoryForm({ children, open, onOpenChange, editC
               <Input
                 id="color"
                 type="color"
-                value={formData.color}
+                value={formData.color ?? '#3b82f6'}
                 onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
                 className="h-10 w-full"
               />
@@ -205,7 +191,7 @@ export default function BudgetCategoryForm({ children, open, onOpenChange, editC
               type="number"
               step="any"
               min="0"
-              value={formData.monthlyLimit}
+              value={formData.monthlyLimit ?? ''}
               onChange={(e) => setFormData(prev => ({ ...prev, monthlyLimit: e.target.value }))}
               placeholder="Ex: 800,00"
             />
@@ -216,7 +202,7 @@ export default function BudgetCategoryForm({ children, open, onOpenChange, editC
             <Label htmlFor="description">Descrição (opcional)</Label>
             <Textarea
               id="description"
-              value={formData.description}
+              value={formData.description ?? ''}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Descreva que tipo de gastos entram nesta categoria..."
               rows={3}
