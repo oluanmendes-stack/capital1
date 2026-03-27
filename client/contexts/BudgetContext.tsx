@@ -327,6 +327,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
             division_id: divisionId!,
             name: cat.name,
             allocated_amount: 0,
+            percentage: 0,
             icon: cat.icon,
             color: cat.color
           } as any)));
@@ -398,6 +399,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
           division_id: divisionId!,
           name: categoryData.name,
           allocated_amount: 0,
+          percentage: 0,
           icon: categoryData.icon,
           color: categoryData.color
         } as any);

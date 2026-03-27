@@ -430,7 +430,8 @@ class SupabaseService {
       // Only send columns that exist in the table
       const insertData = {
         division_id: category.division_id,
-        name: category.name
+        name: category.name,
+        percentage: category.percentage || 0
       };
 
       const { data, error } = await supabase
