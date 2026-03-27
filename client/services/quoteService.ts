@@ -3,12 +3,21 @@ import { InvestmentType, QuoteResponse } from '@shared/investment-types';
 class QuoteService {
   private cache = new Map<string, { data: QuoteResponse; timestamp: number }>();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+  private readonly FETCH_TIMEOUT = 5000; // 5 segundos de timeout
+
+  private fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.FETCH_TIMEOUT);
+
+    return fetch(url, { ...options, signal: controller.signal })
+      .finally(() => clearTimeout(timeoutId));
+  }
 
   // Buscar cotação atual
   async getCurrentQuote(type: InvestmentType): Promise<QuoteResponse> {
     const cacheKey = `quote_${type}`;
     const cached = this.cache.get(cacheKey);
-    
+
     // Verificar cache
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.data;
@@ -55,7 +64,7 @@ class QuoteService {
       return quote;
     } catch (error) {
       console.error(`Erro ao buscar cotação para ${type}:`, error);
-      
+
       // Retornar cotação padrão em caso de erro
       return this.getDefaultQuote(type);
     }
@@ -75,7 +84,7 @@ class QuoteService {
   // Buscar cotação via API backend
   private async fetchQuoteFromBackend(type: InvestmentType): Promise<QuoteResponse> {
     try {
-      const response = await fetch(`/api/quote/${type}`);
+      const response = await this.fetchWithTimeout(`/api/quote/${type}`);
 
       if (!response.ok) {
         throw new Error(`Erro ao buscar cotação: ${response.status}`);

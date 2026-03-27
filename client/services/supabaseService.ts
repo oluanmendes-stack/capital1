@@ -20,16 +20,25 @@ import {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+let supabase: any = null;
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('Missing Supabase environment variables - database operations will be limited');
+} else {
+  try {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+  } catch (error) {
+    console.warn('Failed to initialize Supabase client:', error);
+  }
+}
 
 class SupabaseService {
   private currentUser: User | null = null;
 
   async register(userData: UserCreate): Promise<{ user: User; token: string }> {
+    if (!supabase) {
+      throw new Error('Database service not available');
+    }
     try {
       // Usar autenticação do Supabase
       const { data, error } = await supabase.auth.signUp({
@@ -312,6 +321,10 @@ class SupabaseService {
 
   // ========== DIVISÕES ORÇAMENTÁRIAS ==========
   async getBudgetDivisions(): Promise<DBBudgetDivision[]> {
+    if (!supabase) {
+      console.warn('Supabase not available, returning empty budget divisions');
+      return [];
+    }
     try {
       const { data, error } = await supabase
         .from('budget_divisions')
@@ -327,6 +340,9 @@ class SupabaseService {
   }
 
   async createBudgetDivision(division: CreateBudgetDivisionRequest): Promise<DBBudgetDivision> {
+    if (!supabase) {
+      throw new Error('Supabase not available');
+    }
     try {
       const { data, error } = await supabase
         .from('budget_divisions')
@@ -376,6 +392,10 @@ class SupabaseService {
 
   // ========== CATEGORIAS DE ORÇAMENTO ==========
   async getBudgetCategories(): Promise<DBBudgetCategory[]> {
+    if (!supabase) {
+      console.warn('Supabase not available, returning empty budget categories');
+      return [];
+    }
     try {
       const { data, error } = await supabase
         .from('budget_categories')
@@ -391,6 +411,9 @@ class SupabaseService {
   }
 
   async createBudgetCategory(category: CreateBudgetCategoryRequest): Promise<DBBudgetCategory> {
+    if (!supabase) {
+      throw new Error('Supabase not available');
+    }
     try {
       const { data, error } = await supabase
         .from('budget_categories')

@@ -67,47 +67,63 @@ async function fetchCoinMarketCapQuote(coinId: string): Promise<QuoteResponse> {
 }
 
 async function fetchCoinGeckoQuote(coinId: string): Promise<QuoteResponse> {
-  const response = await fetch(
-    `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=brl&include_24hr_change=true`
-  );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-  if (!response.ok) {
-    throw new Error(`CoinGecko error: ${response.status}`);
+  try {
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=brl&include_24hr_change=true`,
+      { signal: controller.signal }
+    );
+
+    if (!response.ok) {
+      throw new Error(`CoinGecko error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const coinData = data[coinId];
+
+    if (!coinData || !coinData.brl) {
+      throw new Error(`Invalid quote data for ${coinId}`);
+    }
+
+    return {
+      symbol: coinId.toUpperCase(),
+      price: coinData.brl,
+      change24h: coinData.brl_24h_change || 0,
+      lastUpdate: new Date().toISOString()
+    };
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const data = await response.json();
-  const coinData = data[coinId];
-
-  if (!coinData || !coinData.brl) {
-    throw new Error(`Invalid quote data for ${coinId}`);
-  }
-
-  return {
-    symbol: coinId.toUpperCase(),
-    price: coinData.brl,
-    change24h: coinData.brl_24h_change || 0,
-    lastUpdate: new Date().toISOString()
-  };
 }
 
 async function fetchCurrencyQuote(currency: string): Promise<QuoteResponse> {
-  const response = await fetch(
-    `https://economia.awesomeapi.com.br/last/${currency}-BRL`
-  );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-  if (!response.ok) {
-    throw new Error('Currency API error');
+  try {
+    const response = await fetch(
+      `https://economia.awesomeapi.com.br/last/${currency}-BRL`,
+      { signal: controller.signal }
+    );
+
+    if (!response.ok) {
+      throw new Error('Currency API error');
+    }
+
+    const data = await response.json();
+    const currencyData = data[`${currency}BRL`];
+
+    return {
+      symbol: currency,
+      price: parseFloat(currencyData.bid),
+      change24h: parseFloat(currencyData.pctChange),
+      lastUpdate: currencyData.create_date
+    };
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const data = await response.json();
-  const currencyData = data[`${currency}BRL`];
-
-  return {
-    symbol: currency,
-    price: parseFloat(currencyData.bid),
-    change24h: parseFloat(currencyData.pctChange),
-    lastUpdate: currencyData.create_date
-  };
 }
 
 function getDefaultQuote(type: string): QuoteResponse {
