@@ -399,11 +399,18 @@ class SupabaseService {
     try {
       const { data, error } = await supabase
         .from('budget_categories')
-        .select('*')
+        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
         .order('created_at');
 
       if (error) throw error;
-      return (data as DBBudgetCategory[]) || [];
+      // Map the data and provide default values for allocated_amount and spent_amount
+      return (data as any[])?.map(c => ({
+        ...c,
+        allocated_amount: 0,
+        spent_amount: 0,
+        user_id: c.user_id || '',
+        division_id: c.division_id || ''
+      })) || [];
     } catch (error) {
       console.warn('Erro ao buscar categorias orçamentárias:', error);
       return [];
@@ -415,14 +422,27 @@ class SupabaseService {
       throw new Error('Supabase not available');
     }
     try {
+      // Only send columns that exist in the table
+      const insertData = {
+        division_id: category.division_id,
+        name: category.name,
+        icon: category.icon,
+        color: category.color
+      };
+
       const { data, error } = await supabase
         .from('budget_categories')
-        .insert([category])
-        .select()
+        .insert([insertData])
+        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
         .single();
 
       if (error) throw error;
-      return data as DBBudgetCategory;
+      // Provide default values for allocated_amount and spent_amount
+      return {
+        ...data,
+        allocated_amount: 0,
+        spent_amount: 0
+      } as DBBudgetCategory;
     } catch (error) {
       console.warn('Erro ao criar categoria orçamentária:', error);
       throw error;
@@ -430,16 +450,31 @@ class SupabaseService {
   }
 
   async updateBudgetCategory(id: string, updates: UpdateBudgetCategoryRequest): Promise<DBBudgetCategory> {
+    if (!supabase) {
+      throw new Error('Supabase not available');
+    }
     try {
+      // Only send columns that might exist in the table
+      const updateData: any = {};
+      if (updates.name) updateData.name = updates.name;
+      if (updates.icon) updateData.icon = updates.icon;
+      if (updates.color) updateData.color = updates.color;
+      if (updates.division_id) updateData.division_id = updates.division_id;
+
       const { data, error } = await supabase
         .from('budget_categories')
-        .update(updates)
+        .update(updateData)
         .eq('id', id)
-        .select()
+        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
         .single();
 
       if (error) throw error;
-      return data as DBBudgetCategory;
+      // Provide default values for allocated_amount and spent_amount
+      return {
+        ...data,
+        allocated_amount: 0,
+        spent_amount: 0
+      } as DBBudgetCategory;
     } catch (error) {
       console.warn('Erro ao atualizar categoria orçamentária:', error);
       throw error;
