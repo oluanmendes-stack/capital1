@@ -72,155 +72,48 @@ class QuoteService {
     return Object.fromEntries(results) as Record<InvestmentType, QuoteResponse>;
   }
 
-  // Buscar cotação de criptomoeda via CoinMarketCap API (prioritário) ou CoinGecko (fallback)
-  private async fetchCryptoQuote(coinId: string): Promise<QuoteResponse> {
-    // Tentar CoinMarketCap primeiro
+  // Buscar cotação via API backend
+  private async fetchQuoteFromBackend(type: InvestmentType): Promise<QuoteResponse> {
     try {
-      const coinMarketCapQuote = await this.fetchCoinMarketCapQuote(coinId);
-      return coinMarketCapQuote;
-    } catch (error) {
-      console.warn(`Erro ao buscar de CoinMarketCap, usando CoinGecko: ${error}`);
-      // Fallback para CoinGecko
-      return this.fetchCoinGeckoQuote(coinId);
-    }
-  }
-
-  // Buscar cotação via CoinMarketCap API
-  private async fetchCoinMarketCapQuote(coinId: string): Promise<QuoteResponse> {
-    const apiKey = import.meta.env.VITE_COINMARKETCAP_API_KEY || '94d4a907464a4b79ba039952eff85bb5';
-
-    // Mapear IDs de coins para símbolos suportados pelo CoinMarketCap
-    const symbolMap = {
-      bitcoin: 'BTC',
-      ethereum: 'ETH'
-    };
-
-    const symbol = symbolMap[coinId as keyof typeof symbolMap] || 'BTC';
-
-    try {
-      const response = await fetch(
-        `https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=${symbol}&convert=BRL`,
-        {
-          method: 'GET',
-          headers: {
-            'Accepts': 'application/json',
-            'X-CMC_PRO_API_KEY': apiKey,
-          }
-        }
-      );
+      const response = await fetch(`/api/quote/${type}`);
 
       if (!response.ok) {
-        throw new Error(`Erro ao buscar cotação CoinMarketCap: ${response.status}`);
+        throw new Error(`Erro ao buscar cotação: ${response.status}`);
       }
 
-      const data = await response.json();
-
-      if (!data.data || !data.data[symbol]) {
-        throw new Error(`Dados de cotação inválidos para ${symbol} no CoinMarketCap`);
-      }
-
-      const coinData = data.data[symbol];
-      const priceData = coinData.quote.BRL;
-
-      return {
-        symbol: symbol,
-        price: priceData.price,
-        change24h: priceData.percent_change_24h || 0,
-        lastUpdate: new Date().toISOString()
-      };
+      return await response.json();
     } catch (error) {
-      console.warn(`CoinMarketCap API indisponível: ${error}, usando fallback`);
+      console.warn(`Erro ao buscar cotação de ${type}:`, error);
       throw error;
     }
   }
 
-  // Buscar cotação de criptomoeda via CoinGecko API (gratuita)
-  private async fetchCoinGeckoQuote(coinId: string): Promise<QuoteResponse> {
-    const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=brl&include_24hr_change=true`
-    );
-
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar cotação crypto: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const coinData = data[coinId];
-
-    if (!coinData || !coinData.brl) {
-      throw new Error(`Dados de cotação inválidos para ${coinId}`);
-    }
-
-    return {
-      symbol: coinId.toUpperCase(),
-      price: coinData.brl,
-      change24h: coinData.brl_24h_change || 0,
-      lastUpdate: new Date().toISOString()
-    };
+  // Buscar cotação de criptomoeda (agora via backend)
+  private async fetchCryptoQuote(coinId: string): Promise<QuoteResponse> {
+    return this.fetchQuoteFromBackend(coinId as InvestmentType);
   }
 
-  // Buscar cotação de moeda via AwesomeAPI (gratuita, brasileira)
+  // Buscar cotação de moeda (agora via backend)
   private async fetchCurrencyQuote(currency: string): Promise<QuoteResponse> {
-    const response = await fetch(
-      `https://economia.awesomeapi.com.br/last/${currency}-BRL`
-    );
-
-    if (!response.ok) {
-      throw new Error('Erro ao buscar cotação moeda');
-    }
-
-    const data = await response.json();
-    const currencyData = data[`${currency}BRL`];
-
-    return {
-      symbol: currency,
-      price: parseFloat(currencyData.bid),
-      change24h: parseFloat(currencyData.pctChange),
-      lastUpdate: currencyData.create_date
+    const currencyMap: Record<string, InvestmentType> = {
+      'USD': 'dolar',
+      'EUR': 'euro'
     };
+    return this.fetchQuoteFromBackend(currencyMap[currency] || 'dolar');
   }
 
-  // Buscar cotação de commodities (simulada - em produção usar APIs reais)
+  // Buscar cotação de commodities (agora via backend)
   private async fetchCommodityQuote(commodity: string): Promise<QuoteResponse> {
-    // Em produção, usar APIs como MetalAPI, Alpha Vantage, etc.
-    // Aqui vamos simular com valores base + variação aleatória
-    
-    const basePrices = {
-      gold: 350, // R$ por grama
-      silver: 4.5 // R$ por grama
+    const commodityMap: Record<string, InvestmentType> = {
+      'gold': 'ouro',
+      'silver': 'prata'
     };
-
-    const basePrice = basePrices[commodity as keyof typeof basePrices] || 100;
-    const variation = (Math.random() - 0.5) * 0.1; // ±5% variação
-    const price = basePrice * (1 + variation);
-    
-    return {
-      symbol: commodity.toUpperCase(),
-      price: Math.round(price * 100) / 100,
-      change24h: variation * 100,
-      lastUpdate: new Date().toISOString()
-    };
+    return this.fetchQuoteFromBackend(commodityMap[commodity] || 'ouro');
   }
 
-  // Buscar cotação de renda fixa (simulada)
+  // Buscar cotação de renda fixa (agora via backend)
   private async fetchFixedIncomeQuote(type: InvestmentType): Promise<QuoteResponse> {
-    // Para renda fixa, simular rendimento baseado em CDI/Selic
-    const yields = {
-      tesouro_direto: 1.12, // 112% do CDI
-      cdb: 1.08, // 108% do CDI
-      lci_lca: 0.95 // 95% do CDI
-    };
-
-    const cdiRate = 11.25; // Taxa CDI atual (simulada)
-    const annualYield = cdiRate * (yields[type] || 1);
-    const dailyYield = annualYield / 365;
-    
-    return {
-      symbol: type.toUpperCase(),
-      price: 1 + (dailyYield / 100), // Valor unitário baseado no rendimento diário
-      change24h: dailyYield,
-      lastUpdate: new Date().toISOString()
-    };
+    return this.fetchQuoteFromBackend(type);
   }
 
   // Cotação padrão em caso de erro
