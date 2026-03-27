@@ -20,15 +20,20 @@ import {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+console.log('🔧 Supabase init - URL:', supabaseUrl ? '✓' : '✗', 'Key:', supabaseAnonKey ? '✓' : '✗');
+
 let supabase: any = null;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase environment variables - database operations will be limited');
+  console.warn('❌ Missing Supabase environment variables - database operations will be limited');
+  console.warn('   VITE_SUPABASE_URL:', supabaseUrl);
+  console.warn('   VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '***' : 'undefined');
 } else {
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
+    console.log('✅ Supabase client initialized successfully');
   } catch (error) {
-    console.warn('Failed to initialize Supabase client:', error);
+    console.warn('❌ Failed to initialize Supabase client:', error);
   }
 }
 
@@ -571,31 +576,48 @@ class SupabaseService {
   }
 
   async createGoal(goal: any): Promise<any> {
+    console.log('🎯 createGoal called with:', goal);
+
     if (!supabase) {
+      console.error('❌ Supabase not available');
       throw new Error('Supabase not available');
     }
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error('User not authenticated');
+      console.log('👤 Current user:', user?.id, 'Auth error:', authError);
+
+      if (authError || !user) {
+        console.error('❌ User not authenticated:', authError);
+        throw new Error('User not authenticated');
+      }
+
+      const goalData = {
+        title: goal.title,
+        target_amount: goal.target_amount,
+        current_amount: goal.current_amount,
+        target_date: goal.target_date,
+        description: goal.description,
+        status: 'active',
+        user_id: user.id
+      };
+
+      console.log('📝 Inserting goal data:', goalData);
 
       const { data, error } = await supabase
         .from('goals')
-        .insert([{
-          title: goal.title,
-          target_amount: goal.target_amount,
-          current_amount: goal.current_amount,
-          target_date: goal.target_date,
-          description: goal.description,
-          status: 'active',
-          user_id: user.id
-        }])
+        .insert([goalData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase insert error:', error);
+        throw error;
+      }
+
+      console.log('✅ Goal created successfully:', data);
       return data;
     } catch (error) {
-      console.warn('Erro ao criar objetivo:', error);
+      console.error('❌ Erro ao criar objetivo:', error);
       throw error;
     }
   }

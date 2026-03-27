@@ -161,15 +161,23 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
 
 
   const addGoal = useCallback((goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
+    console.log('📌 addGoal called with:', goalData);
+
     (async () => {
       try {
-        const created = await supabaseService.createGoal({
+        const goalPayload = {
           title: goalData.name,
           target_amount: goalData.targetAmount,
           current_amount: 0,
           target_date: goalData.deadline,
           description: goalData.description,
-        });
+        };
+        console.log('📤 Sending to Supabase:', goalPayload);
+
+        const created = await supabaseService.createGoal(goalPayload);
+
+        console.log('🎉 Goal created from Supabase:', created);
+
         const goal: Goal = {
           id: created.id,
           name: created.title || goalData.name,
@@ -181,9 +189,13 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
           createdAt: created.created_at,
           updatedAt: created.updated_at
         };
+
+        console.log('✅ Dispatching goal to state:', goal);
         dispatch({ type: 'ADD_GOAL', payload: goal });
       } catch (e) {
-        console.warn('Falha ao criar objetivo na API, salvando localmente:', e);
+        console.error('❌ Failed to create goal in API:', e);
+        console.log('💾 Falling back to localStorage');
+
         const local: Goal = {
           ...goalData,
           id: crypto.randomUUID(),
