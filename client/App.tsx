@@ -57,7 +57,7 @@ function ProtectedRoutes() {
   );
 }
 
-const App = () => (
+export const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
@@ -70,5 +70,3 @@ const App = () => (
     </AuthProvider>
   </QueryClientProvider>
 );
-
-createRoot(document.getElementById("root")!).render(<App />);
