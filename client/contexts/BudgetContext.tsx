@@ -312,7 +312,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         const mapped = budgetCategories.map((c: any): BudgetCategory => ({
           id: c.id,
           name: c.name,
-          monthlyLimit: Number(c.allocated_amount) || 0,
+          monthlyLimit: 0, // Budget categories from DB don't have allocated_amount, using 0
           description: undefined,
           icon: c.icon || undefined,
           color: c.color || undefined,

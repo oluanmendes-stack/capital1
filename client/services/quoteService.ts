@@ -97,36 +97,41 @@ class QuoteService {
 
     const symbol = symbolMap[coinId as keyof typeof symbolMap] || 'BTC';
 
-    const response = await fetch(
-      'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest',
-      {
-        method: 'GET',
-        headers: {
-          'Accepts': 'application/json',
-          'X-CMC_PRO_API_KEY': apiKey,
+    try {
+      const response = await fetch(
+        `https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=${symbol}&convert=BRL`,
+        {
+          method: 'GET',
+          headers: {
+            'Accepts': 'application/json',
+            'X-CMC_PRO_API_KEY': apiKey,
+          }
         }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar cotação CoinMarketCap: ${response.status}`);
       }
-    );
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar cotação CoinMarketCap: ${response.status}`);
+      const data = await response.json();
+
+      if (!data.data || !data.data[symbol]) {
+        throw new Error(`Dados de cotação inválidos para ${symbol} no CoinMarketCap`);
+      }
+
+      const coinData = data.data[symbol];
+      const priceData = coinData.quote.BRL;
+
+      return {
+        symbol: symbol,
+        price: priceData.price,
+        change24h: priceData.percent_change_24h || 0,
+        lastUpdate: new Date().toISOString()
+      };
+    } catch (error) {
+      console.warn(`CoinMarketCap API indisponível: ${error}, usando fallback`);
+      throw error;
     }
-
-    const data = await response.json();
-
-    if (!data.data || !data.data[symbol]) {
-      throw new Error(`Dados de cotação inválidos para ${symbol} no CoinMarketCap`);
-    }
-
-    const coinData = data.data[symbol];
-    const priceData = coinData.quote.BRL;
-
-    return {
-      symbol: symbol,
-      price: priceData.price,
-      change24h: priceData.percent_change_24h || 0,
-      lastUpdate: new Date().toISOString()
-    };
   }
 
   // Buscar cotação de criptomoeda via CoinGecko API (gratuita)
