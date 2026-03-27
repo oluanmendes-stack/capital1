@@ -161,22 +161,23 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
 
 
   const addGoal = useCallback((goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
+    console.log('📌 addGoal called with:', goalData);
+
     (async () => {
       try {
-        const payload: CreateGoalRequest = {
+        const goalPayload = {
           title: goalData.name,
           target_amount: goalData.targetAmount,
+          current_amount: 0,
           target_date: goalData.deadline,
           description: goalData.description,
-        } as any;
-        const created = await supabaseService.createGoal({
-          name: goalData.name,
-          category: goalData.category,
-          target_amount: goalData.targetAmount,
-          current_amount: 0,
-          deadline: goalData.deadline,
-          description: goalData.description,
-        });
+        };
+        console.log('📤 Sending to Supabase:', goalPayload);
+
+        const created = await supabaseService.createGoal(goalPayload);
+
+        console.log('🎉 Goal created from Supabase:', created);
+
         const goal: Goal = {
           id: created.id,
           name: created.title || goalData.name,
@@ -188,9 +189,13 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
           createdAt: created.created_at,
           updatedAt: created.updated_at
         };
+
+        console.log('✅ Dispatching goal to state:', goal);
         dispatch({ type: 'ADD_GOAL', payload: goal });
       } catch (e) {
-        console.warn('Falha ao criar objetivo na API, salvando localmente:', e);
+        console.error('❌ Failed to create goal in API:', e);
+        console.log('💾 Falling back to localStorage');
+
         const local: Goal = {
           ...goalData,
           id: crypto.randomUUID(),
@@ -205,21 +210,11 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   const updateGoal = useCallback((goal: Goal) => {
     (async () => {
       try {
-        const payload: UpdateGoalRequest = {
-          id: goal.id,
+        await supabaseService.updateGoal(goal.id, {
           title: goal.name,
           target_amount: goal.targetAmount,
           current_amount: goal.currentAmount,
           target_date: goal.deadline,
-          description: goal.description,
-          status: undefined,
-        } as any;
-        await supabaseService.updateGoal(goal.id, {
-          name: goal.name,
-          category: goal.category,
-          target_amount: goal.targetAmount,
-          current_amount: goal.currentAmount,
-          deadline: goal.deadline,
           description: goal.description,
         });
       } catch (e) {

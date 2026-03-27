@@ -20,15 +20,20 @@ import {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+console.log('🔧 Supabase init - URL:', supabaseUrl ? '✓' : '✗', 'Key:', supabaseAnonKey ? '✓' : '✗');
+
 let supabase: any = null;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase environment variables - database operations will be limited');
+  console.warn('❌ Missing Supabase environment variables - database operations will be limited');
+  console.warn('   VITE_SUPABASE_URL:', supabaseUrl);
+  console.warn('   VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '***' : 'undefined');
 } else {
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
+    console.log('✅ Supabase client initialized successfully');
   } catch (error) {
-    console.warn('Failed to initialize Supabase client:', error);
+    console.warn('❌ Failed to initialize Supabase client:', error);
   }
 }
 
@@ -399,7 +404,7 @@ class SupabaseService {
     try {
       const { data, error } = await supabase
         .from('budget_categories')
-        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
+        .select('*')
         .order('created_at');
 
       if (error) throw error;
@@ -433,7 +438,7 @@ class SupabaseService {
       const { data, error } = await supabase
         .from('budget_categories')
         .insert([insertData])
-        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
+        .select('*')
         .single();
 
       if (error) throw error;
@@ -441,7 +446,9 @@ class SupabaseService {
       return {
         ...data,
         allocated_amount: 0,
-        spent_amount: 0
+        spent_amount: 0,
+        user_id: data.user_id || '',
+        division_id: data.division_id || ''
       } as DBBudgetCategory;
     } catch (error) {
       console.warn('Erro ao criar categoria orçamentária:', error);
@@ -465,7 +472,7 @@ class SupabaseService {
         .from('budget_categories')
         .update(updateData)
         .eq('id', id)
-        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
+        .select('*')
         .single();
 
       if (error) throw error;
@@ -473,7 +480,9 @@ class SupabaseService {
       return {
         ...data,
         allocated_amount: 0,
-        spent_amount: 0
+        spent_amount: 0,
+        user_id: data.user_id || '',
+        division_id: data.division_id || ''
       } as DBBudgetCategory;
     } catch (error) {
       console.warn('Erro ao atualizar categoria orçamentária:', error);
@@ -556,7 +565,7 @@ class SupabaseService {
         .from('goals')
         .select('*')
         .eq('user_id', user.id)
-        .order('deadline');
+        .order('target_date');
 
       if (error) throw error;
       return (data as any[]) || [];
@@ -567,26 +576,48 @@ class SupabaseService {
   }
 
   async createGoal(goal: any): Promise<any> {
+    console.log('🎯 createGoal called with:', goal);
+
     if (!supabase) {
+      console.error('❌ Supabase not available');
       throw new Error('Supabase not available');
     }
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error('User not authenticated');
+      console.log('👤 Current user:', user?.id, 'Auth error:', authError);
+
+      if (authError || !user) {
+        console.error('❌ User not authenticated:', authError);
+        throw new Error('User not authenticated');
+      }
+
+      const goalData = {
+        title: goal.title,
+        target_amount: goal.target_amount,
+        current_amount: goal.current_amount,
+        target_date: goal.target_date,
+        description: goal.description,
+        status: 'active',
+        user_id: user.id
+      };
+
+      console.log('📝 Inserting goal data:', goalData);
 
       const { data, error } = await supabase
         .from('goals')
-        .insert([{
-          ...goal,
-          user_id: user.id
-        }])
+        .insert([goalData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase insert error:', error);
+        throw error;
+      }
+
+      console.log('✅ Goal created successfully:', data);
       return data;
     } catch (error) {
-      console.warn('Erro ao criar objetivo:', error);
+      console.error('❌ Erro ao criar objetivo:', error);
       throw error;
     }
   }
@@ -596,9 +627,16 @@ class SupabaseService {
       throw new Error('Supabase not available');
     }
     try {
+      const updateData: any = {};
+      if (updates.title) updateData.title = updates.title;
+      if (updates.target_amount !== undefined) updateData.target_amount = updates.target_amount;
+      if (updates.current_amount !== undefined) updateData.current_amount = updates.current_amount;
+      if (updates.target_date) updateData.target_date = updates.target_date;
+      if (updates.description) updateData.description = updates.description;
+
       const { data, error } = await supabase
         .from('goals')
-        .update(updates)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
