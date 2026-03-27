@@ -399,7 +399,7 @@ class SupabaseService {
     try {
       const { data, error } = await supabase
         .from('budget_categories')
-        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
+        .select('*')
         .order('created_at');
 
       if (error) throw error;
@@ -433,7 +433,7 @@ class SupabaseService {
       const { data, error } = await supabase
         .from('budget_categories')
         .insert([insertData])
-        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
+        .select('*')
         .single();
 
       if (error) throw error;
@@ -441,7 +441,9 @@ class SupabaseService {
       return {
         ...data,
         allocated_amount: 0,
-        spent_amount: 0
+        spent_amount: 0,
+        user_id: data.user_id || '',
+        division_id: data.division_id || ''
       } as DBBudgetCategory;
     } catch (error) {
       console.warn('Erro ao criar categoria orçamentária:', error);
@@ -465,7 +467,7 @@ class SupabaseService {
         .from('budget_categories')
         .update(updateData)
         .eq('id', id)
-        .select('id, user_id, division_id, name, icon, color, created_at, updated_at')
+        .select('*')
         .single();
 
       if (error) throw error;
@@ -473,7 +475,9 @@ class SupabaseService {
       return {
         ...data,
         allocated_amount: 0,
-        spent_amount: 0
+        spent_amount: 0,
+        user_id: data.user_id || '',
+        division_id: data.division_id || ''
       } as DBBudgetCategory;
     } catch (error) {
       console.warn('Erro ao atualizar categoria orçamentária:', error);
@@ -556,7 +560,7 @@ class SupabaseService {
         .from('goals')
         .select('*')
         .eq('user_id', user.id)
-        .order('deadline');
+        .order('target_date');
 
       if (error) throw error;
       return (data as any[]) || [];
@@ -577,7 +581,12 @@ class SupabaseService {
       const { data, error } = await supabase
         .from('goals')
         .insert([{
-          ...goal,
+          title: goal.title,
+          target_amount: goal.target_amount,
+          current_amount: goal.current_amount,
+          target_date: goal.target_date,
+          description: goal.description,
+          status: 'active',
           user_id: user.id
         }])
         .select()
@@ -596,9 +605,16 @@ class SupabaseService {
       throw new Error('Supabase not available');
     }
     try {
+      const updateData: any = {};
+      if (updates.title) updateData.title = updates.title;
+      if (updates.target_amount !== undefined) updateData.target_amount = updates.target_amount;
+      if (updates.current_amount !== undefined) updateData.current_amount = updates.current_amount;
+      if (updates.target_date) updateData.target_date = updates.target_date;
+      if (updates.description) updateData.description = updates.description;
+
       const { data, error } = await supabase
         .from('goals')
-        .update(updates)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();

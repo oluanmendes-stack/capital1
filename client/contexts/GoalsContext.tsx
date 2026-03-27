@@ -163,18 +163,11 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   const addGoal = useCallback((goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
     (async () => {
       try {
-        const payload: CreateGoalRequest = {
+        const created = await supabaseService.createGoal({
           title: goalData.name,
           target_amount: goalData.targetAmount,
-          target_date: goalData.deadline,
-          description: goalData.description,
-        } as any;
-        const created = await supabaseService.createGoal({
-          name: goalData.name,
-          category: goalData.category,
-          target_amount: goalData.targetAmount,
           current_amount: 0,
-          deadline: goalData.deadline,
+          target_date: goalData.deadline,
           description: goalData.description,
         });
         const goal: Goal = {
@@ -205,21 +198,11 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   const updateGoal = useCallback((goal: Goal) => {
     (async () => {
       try {
-        const payload: UpdateGoalRequest = {
-          id: goal.id,
+        await supabaseService.updateGoal(goal.id, {
           title: goal.name,
           target_amount: goal.targetAmount,
           current_amount: goal.currentAmount,
           target_date: goal.deadline,
-          description: goal.description,
-          status: undefined,
-        } as any;
-        await supabaseService.updateGoal(goal.id, {
-          name: goal.name,
-          category: goal.category,
-          target_amount: goal.targetAmount,
-          current_amount: goal.currentAmount,
-          deadline: goal.deadline,
           description: goal.description,
         });
       } catch (e) {
