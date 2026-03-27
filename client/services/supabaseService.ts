@@ -430,9 +430,7 @@ class SupabaseService {
       // Only send columns that exist in the table
       const insertData = {
         division_id: category.division_id,
-        name: category.name,
-        icon: category.icon,
-        color: category.color
+        name: category.name
       };
 
       const { data, error } = await supabase
@@ -461,11 +459,9 @@ class SupabaseService {
       throw new Error('Supabase not available');
     }
     try {
-      // Only send columns that might exist in the table
+      // Only send columns that exist in the table
       const updateData: any = {};
       if (updates.name) updateData.name = updates.name;
-      if (updates.icon) updateData.icon = updates.icon;
-      if (updates.color) updateData.color = updates.color;
       if (updates.division_id) updateData.division_id = updates.division_id;
 
       const { data, error } = await supabase
@@ -597,7 +593,6 @@ class SupabaseService {
         current_amount: goal.current_amount,
         target_date: goal.target_date,
         description: goal.description,
-        status: 'active',
         user_id: user.id
       };
 
