@@ -232,22 +232,34 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         const savedExpensesStr = localStorage.getItem(EXPENSES_STORAGE_KEY);
         const savedDivisionsStr = localStorage.getItem(DIVISIONS_STORAGE_KEY);
 
-        if (savedCategoriesStr) {
-          const savedCategories = JSON.parse(savedCategoriesStr) as BudgetCategory[];
-          if (Array.isArray(savedCategories)) {
-            dispatch({ type: 'LOAD_CATEGORIES', payload: savedCategories });
+        if (savedCategoriesStr && savedCategoriesStr.trim()) {
+          try {
+            const savedCategories = JSON.parse(savedCategoriesStr) as BudgetCategory[];
+            if (Array.isArray(savedCategories)) {
+              dispatch({ type: 'LOAD_CATEGORIES', payload: savedCategories });
+            }
+          } catch (e) {
+            console.warn('Erro ao parsear categorias:', e);
           }
         }
-        if (savedExpensesStr) {
-          const savedExpenses = JSON.parse(savedExpensesStr) as BudgetExpense[];
-          if (Array.isArray(savedExpenses)) {
-            dispatch({ type: 'LOAD_EXPENSES', payload: savedExpenses });
+        if (savedExpensesStr && savedExpensesStr.trim()) {
+          try {
+            const savedExpenses = JSON.parse(savedExpensesStr) as BudgetExpense[];
+            if (Array.isArray(savedExpenses)) {
+              dispatch({ type: 'LOAD_EXPENSES', payload: savedExpenses });
+            }
+          } catch (e) {
+            console.warn('Erro ao parsear despesas:', e);
           }
         }
-        if (savedDivisionsStr) {
-          const savedDivisions = JSON.parse(savedDivisionsStr) as any[];
-          if (Array.isArray(savedDivisions) && savedDivisions.length > 0) {
-            setDefaultDivisionId(savedDivisions[0].id);
+        if (savedDivisionsStr && savedDivisionsStr.trim()) {
+          try {
+            const savedDivisions = JSON.parse(savedDivisionsStr) as any[];
+            if (Array.isArray(savedDivisions) && savedDivisions.length > 0) {
+              setDefaultDivisionId(savedDivisions[0].id);
+            }
+          } catch (e) {
+            console.warn('Erro ao parsear divisões:', e);
           }
         }
       } catch (error) {
@@ -269,7 +281,6 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
           name: 'Pessoal',
           percentage: 100,
           color: '#3B82F6',
-          description: 'Divisão padrão',
           sort_order: 0
         } as any);
         divisionId = created.id;
@@ -280,8 +291,22 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       const savedCategoriesStr = localStorage.getItem(CATEGORIES_STORAGE_KEY);
       const savedExpensesStr = localStorage.getItem(EXPENSES_STORAGE_KEY);
 
-      const savedCategories = savedCategoriesStr ? JSON.parse(savedCategoriesStr) : null;
-      const savedExpenses = savedExpensesStr ? JSON.parse(savedExpensesStr) : null;
+      let savedCategories = null;
+      let savedExpenses = null;
+
+      try {
+        savedCategories = savedCategoriesStr && savedCategoriesStr.trim() ? JSON.parse(savedCategoriesStr) : null;
+      } catch (error) {
+        console.warn('Erro ao parsear categorias salvas:', error);
+        savedCategories = null;
+      }
+
+      try {
+        savedExpenses = savedExpensesStr && savedExpensesStr.trim() ? JSON.parse(savedExpensesStr) : null;
+      } catch (error) {
+        console.warn('Erro ao parsear despesas salvas:', error);
+        savedExpenses = null;
+      }
 
       if (budgetCategories && budgetCategories.length > 0) {
         const mapped = budgetCategories.map((c: any): BudgetCategory => ({
